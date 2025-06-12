@@ -1,8 +1,8 @@
 <!DOCTYPE html><html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dima's Wordle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dima's Wordle (Online)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -11,7 +11,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin: 0;
       padding: 1em;
     }
     #game {
@@ -21,8 +20,7 @@
       margin-bottom: 20px;
     }
     .tile {
-      width: 50px;
-      height: 50px;
+      width: 50px; height: 50px;
       border: 2px solid #444;
       text-align: center;
       line-height: 50px;
@@ -42,61 +40,53 @@
       border: none;
       border-radius: 5px;
     }
-    button:hover {
-      background: #555;
-    }
-    #keyboard button {
-      min-width: 30px;
-    }
-    select {
-      margin-bottom: 10px;
-      padding: 6px;
-    }
+    button:hover { background: #555; }
+    #keyboard button { min-width: 30px; }
   </style>
 </head>
 <body>
-  <h1>Dima's Wordle</h1>
-  <select id="difficulty">
-    <option value="5">🟢 Легкий (5 букв)</option>
-    <option value="6">🟠 Средний (6 букв)</option>
-    <option value="7">🔴 Сложный (7 букв)</option>
-  </select>
+  <h1>Dima's Wordle 🌐</h1>
   <div id="game"></div>
   <div id="keyboard"></div>
-  <button onclick="showLeaders()">📊 Таблица лидеров</button>
-  <div id="leaders" style="display:none; margin-top:10px;"></div>  <script>
-    let wordLength = 5;
+
+  <script>
     let word = "";
     let current = "";
     let attempts = [];
+
     const game = document.getElementById("game");
     const keyboard = document.getElementById("keyboard");
 
-    async function getRandomWord(length) {
-      const sample = ["арбуз", "носок", "камыш", "город", "письмо", "завод", "арбузик", "вопросы", "привет"];
-      const candidates = sample.filter(w => w.length === length);
-      return candidates[Math.floor(Math.random() * candidates.length)].toUpperCase();
-    }
-
     async function isValidWord(word) {
-      const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/ru/${word.toLowerCase()}`);
-      return res.ok;
+      try {
+        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/ru/${word.toLowerCase()}`);
+        return res.ok;
+      } catch {
+        return false;
+      }
     }
 
-    async function newGame() {
-      wordLength = parseInt(document.getElementById("difficulty").value);
-      word = await getRandomWord(wordLength);
-      current = "";
-      attempts = [];
+    async function getRandomWord() {
+      const alphabet = "абвгдеёжзийклмнопрстуфхцчшщьыэюя";
+      while (true) {
+        let w = "";
+        for (let i = 0; i < 5; i++) {
+          w += alphabet[Math.floor(Math.random() * alphabet.length)];
+        }
+        if (await isValidWord(w)) return w.toUpperCase();
+      }
+    }
+
+    async function initGame() {
+      word = await getRandomWord();
       drawGrid();
     }
 
     function drawGrid() {
       game.innerHTML = "";
-      game.style.gridTemplateColumns = `repeat(${wordLength}, 50px)`;
       for (let row = 0; row < 6; row++) {
         const attempt = attempts[row] || "";
-        for (let col = 0; col < wordLength; col++) {
+        for (let col = 0; col < 5; col++) {
           const tile = document.createElement("div");
           tile.className = "tile";
           const char = attempt[col] || (row === attempts.length ? current[col] || "" : "");
@@ -112,7 +102,7 @@
     }
 
     function pressLetter(l) {
-      if (current.length < wordLength) {
+      if (current.length < 5) {
         current += l;
         drawGrid();
       }
@@ -124,21 +114,17 @@
     }
 
     async function submitGuess() {
-      if (current.length !== wordLength) return;
-      const valid = await isValidWord(current);
-      if (!valid) {
-        alert("❌ Нет такого слова");
+      if (current.length !== 5) return;
+      if (!(await isValidWord(current))) {
+        alert("Нет такого слова");
         return;
       }
       attempts.push(current);
       drawGrid();
       if (current === word) {
-        setTimeout(() => {
-          alert("🎉 Угадал!");
-          saveWin();
-        }, 100);
+        setTimeout(() => alert("🎉 Угадал!"), 100);
       } else if (attempts.length === 6) {
-        setTimeout(() => alert("❌ Загаданное слово: " + word), 100);
+        setTimeout(() => alert("❌ Было: " + word), 100);
       }
       current = "";
     }
@@ -150,44 +136,22 @@
       ["⏎"]
     ];
 
-    function drawKeyboard() {
-      keyboard.innerHTML = "";
-      keyboardLayout.forEach(row => {
-        row.forEach(key => {
-          const btn = document.createElement("button");
-          btn.textContent = key;
-          btn.onclick = () => {
-            if (key === "⌫") backspace();
-            else if (key === "⏎") submitGuess();
-            else pressLetter(key);
-          };
-          keyboard.appendChild(btn);
-        });
-        keyboard.appendChild(document.createElement("br"));
+    keyboard.innerHTML = "";
+    keyboardLayout.forEach(row => {
+      row.forEach(key => {
+        const btn = document.createElement("button");
+        btn.textContent = key;
+        btn.onclick = () => {
+          if (key === "⌫") backspace();
+          else if (key === "⏎") submitGuess();
+          else pressLetter(key);
+        };
+        keyboard.appendChild(btn);
       });
-    }
+      keyboard.appendChild(document.createElement("br"));
+    });
 
-    function saveWin() {
-      const name = prompt("Введите ваше имя для таблицы лидеров:");
-      if (!name) return;
-      const leaders = JSON.parse(localStorage.getItem("leaders") || "[]");
-      leaders.push({ name, date: new Date().toLocaleDateString(), attempts: attempts.length });
-      leaders.sort((a, b) => a.attempts - b.attempts);
-      localStorage.setItem("leaders", JSON.stringify(leaders.slice(0, 10)));
-    }
-
-    function showLeaders() {
-      const box = document.getElementById("leaders");
-      box.style.display = box.style.display === "none" ? "block" : "none";
-      const leaders = JSON.parse(localStorage.getItem("leaders") || "[]");
-      box.innerHTML = "<h3>🏆 Лидеры:</h3>" + leaders.map(l =>
-        `<div>${l.name} — ${l.attempts} попыток (${l.date})</div>`
-      ).join("");
-    }
-
-    document.getElementById("difficulty").addEventListener("change", newGame);
-
-    drawKeyboard();
-    newGame();
-  </script></body>
+    initGame();
+  </script>
+</body>
 </html>
