@@ -158,7 +158,7 @@
           btn.textContent = key;
           btn.onclick = () => {
             if (key === "⌫") backspace();
-            else if (key === "Ввод") submitGuess();
+            else if (key === "⏎") submitGuess();
             else pressLetter(key);
           };
           keyboard.appendChild(btn);
